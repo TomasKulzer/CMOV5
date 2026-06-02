@@ -114,10 +114,9 @@ UE1 = 10.0.0.x    UE2 = 10.0.0.y
 
 ---
 
-### Task 3 — Bandwidth Reconfiguration + RTT (60 pings × 2 UEs)
+### Task 3 — Bandwidth Reconfiguration + RTT + Throughput (60 pings × 2 UEs)
 
-This reconfigures the gNB to 100 MHz (or 20 MHz) bandwidth at 3500 MHz, starts both UEs, then runs 60 pings in each direction.  
-**Leaves the gNB and UEs running** so Task 4 can follow immediately.
+This reconfigures the gNB to 100 MHz (or 20 MHz) bandwidth at 3500 MHz, starts both UEs, then runs 60 pings in each direction and the throughput suite for both UEs.
 
 **Terminal 1 — Core:**
 ```bash
@@ -153,24 +152,9 @@ UE1 IP = 10.0.0.x    UE2 IP = 10.0.0.y
 
 ---
 
-### Task 4 — Throughput Measurement (iperf)
+#### Throughput outputs
+The merged Task 3 flow also writes the throughput CSV files that used to belong to Task 4:
 
-Run **after Task 3** while the gNB and UEs are still running.
-
-Take the UE IPs printed by Task 3 and pass them as arguments:
-
-```bash
-cd ~/lab5
-bash task4.sh 10.0.0.x 10.0.0.y 100
-```
-
-#### What it measures (for each UE)
-1. **UDP Downlink** — iperf server on UE, client on ext-dn (10 Mbit/s, 60 s)
-2. **UDP Uplink** — iperf server on ext-dn, client on UE (10 Mbit/s, 60 s)
-3. **TCP Downlink** — iperf server on UE, client on ext-dn (60 s)
-4. **TCP Uplink** — iperf server on ext-dn, client on UE (60 s)
-
-#### Output files (saved to `~/` on gNB)
 | File | Content |
 |---|---|
 | `throughput_udp_dl_ue1_100.csv` | UDP Downlink throughput (UE1) |
@@ -186,6 +170,8 @@ bash task4.sh 10.0.0.x 10.0.0.y 100
 - **UDP:** ~10 Mbit/s (capped by the `-b 10M` flag)
 - **TCP:** ~20–30 Mbit/s (not artificially limited)
 - UDP UL/DL should be similar; TCP may vary more
+
+`task4.sh` is now only a compatibility wrapper and is no longer needed for normal use.
 
 ---
 

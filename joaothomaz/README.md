@@ -22,7 +22,7 @@ Notes:
   - For task 1 both a Uplink ping will occur from the User Equipment to the External Data Network, and vice-versa for the Downlink ping case;
   - For task 2 both a Uplink ping will occur from the User Equipment 1 and 2 to the External Data Network, and vice-versa for the Downlink ping case. The `multi_ue.sh` script should be place at the ~/ directory of the **gNB** machine.
   - For task 3, the third argument (20MHz or 100MHz) will define which parameters will be placed in the `.conf` file, to comply with the https://www.sqimway.com/nr_refA.php. **At the moment 20MHz can't be reproduced.**
-  - For task 4, the third argument will still be used, and will define the settings for **UEs**. ICMPs pings to determine RTT for both UEs will happen (Uplink and Downlink cases, similar to Task 2) and then using the `iperf` command (Uplink and Downlink cases) we will determine the throughput of both devices, in a TCP vs UDP situation.
+  - Task 4 throughput is now merged into Task 3. Running the Task 3 script will perform the RTT pings and the `iperf` throughput tests for both UEs in sequence.
     - The `.txt` and `.csv` files exported to ~/ can then be processed by the `plots-task34/plotter.py` Python script that will plot the graphics necessary to insert in the report. 
   - For task 5, the web monitoring interface needs only `server.py` to be run with:
 ```bash
