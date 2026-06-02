@@ -305,7 +305,7 @@ if [ "$1" == "gnb" ]; then
 			BITRATE="10M" # 10Mbits per second
 			TIME="60" # in seconds
 
-			ssh -t mobile@${IP_HOST_CORE} "sudo docker exec -it oai-ext-dn iperf -y C -u -t $TIME -i 1 -fk -B $IP_EXT_DN -b $BITRATE -c $CURRENT_IP_UE" | tee ~/throughput_udp_dl_${NS}_${BW}.csv
+			ssh -t mobile@${IP_HOST_CORE} "sudo docker exec -it oai-ext-dn iperf -y C -u -t $TIME -i 1 -fk -B $IP_EXT_DN -b $BITRATE -c $CURRENT_IP_UE" | tee /tmp/task4_udp_dl_${NS}_${BW}.csv
 
 			echo "[*] Preparing iPerf UDP Uplink for throughput"
 
@@ -315,7 +315,7 @@ if [ "$1" == "gnb" ]; then
 			sleep 10
 
 			echo "[*] Starting iPerf UDP Client"
-			sudo ip netns exec $NS iperf -y C -u -t $TIME -i 1 -fk -b $BITRATE -B $CURRENT_IP_UE -c $IP_EXT_DN	| tee ~/throughput_udp_ul_${NS}_${BW}.csv
+			sudo ip netns exec $NS iperf -y C -u -t $TIME -i 1 -fk -b $BITRATE -B $CURRENT_IP_UE -c $IP_EXT_DN	| tee /tmp/task4_udp_ul_${NS}_${BW}.csv
 
 
 			echo -en "\n\n\n"
@@ -343,7 +343,7 @@ if [ "$1" == "gnb" ]; then
 
 			BITRATE="10M" # 10Mbits per second
 
-			ssh -t mobile@${IP_HOST_CORE} "sudo docker exec -it oai-ext-dn iperf -y C -t $TIME -i 1 -fk -B $IP_EXT_DN -c $CURRENT_IP_UE" | tee ~/throughput_tcp_dl_${NS}_${BW}.csv
+			ssh -t mobile@${IP_HOST_CORE} "sudo docker exec -it oai-ext-dn iperf -y C -t $TIME -i 1 -fk -B $IP_EXT_DN -c $CURRENT_IP_UE" | tee /tmp/task4_tcp_dl_${NS}_${BW}.csv
 
 			echo -en "\n\n\n"
 
@@ -357,7 +357,7 @@ if [ "$1" == "gnb" ]; then
 
 
 			echo "[*] Starting iPerf TCP Client"
-			sudo ip netns exec $NS iperf -y C -t $TIME -i 1 -fk -B $CURRENT_IP_UE -c $IP_EXT_DN | tee ~/throughput_tcp_ul_${NS}_${BW}.csv
+			sudo ip netns exec $NS iperf -y C -t $TIME -i 1 -fk -B $CURRENT_IP_UE -c $IP_EXT_DN | tee /tmp/task4_tcp_ul_${NS}_${BW}.csv
 			
 
 			echo -en "\n\n\n"
