@@ -110,10 +110,10 @@ wait_for 15 "UEs attaching"
 
 # ---- Uplink RTT ----
 echo "[T4] Uplink ping  (60x)  UE1 -> ext-dn"
-sudo ip netns exec ue1 ping -c 10 "${EXT_DN}" -I oaitun_ue1 | tee "${OUTPUT_DIR}/rtt_ul_ue1_${BW}.txt"
+sudo ip netns exec ue1 ping -c 10 "${EXT_DN}" -I oaitun_ue1 | tee "/tmp/rtt_ul_ue1_${BW}.txt"
 
 echo "[T4] Uplink ping  (60x)  UE2 -> ext-dn"
-sudo ip netns exec ue2 ping -c 10 "${EXT_DN}" -I oaitun_ue1 | tee "${OUTPUT_DIR}/rtt_ul_ue2_${BW}.txt"
+sudo ip netns exec ue2 ping -c 10 "${EXT_DN}" -I oaitun_ue1 | tee "/tmp/rtt_ul_ue2_${BW}.txt"
 
 # ---- Gather IPs ----
 IP_UE1=$(ue_ip ue1)
@@ -125,14 +125,14 @@ wait_for 5 "preparing downlink"
 
 # ---- Downlink RTT ----
 echo "[T4] Downlink ping  (60x)  ext-dn -> UE1"
-ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE1}" 2>/dev/null | tee "${OUTPUT_DIR}/rtt_dl_ue1_${BW}.txt"
+ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE1}" 2>/dev/null | tee "/tmp/rtt_dl_ue1_${BW}.txt"
 
 echo "[T4] Downlink ping  (60x)  ext-dn -> UE2"
-ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE2}" 2>/dev/null | tee "${OUTPUT_DIR}/rtt_dl_ue2_${BW}.txt"
+ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE2}" 2>/dev/null | tee "/tmp/rtt_dl_ue2_${BW}.txt"
 
 # ---- Throughput (Task 4) ----
 BITRATE="10M"
-DURATION="60"
+DURATION="10"
 
 run_iperf_suite() {
     local ns="$1" ue_ip="$2"
@@ -149,12 +149,13 @@ run_iperf_suite() {
 
     echo "[T4] UDP Uplink  ${ns}"
     ssh -t "${SSH_USER}@${CORE_HOST}" \
-        "tmux new-session -d -s ${SESS[iperf]} 'sudo docker exec oai-ext-dn iperf -s -u -i 1 -fk -B ${EXT_DN}'" \
+        "sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true; sudo docker exec -d oai-ext-dn iperf -s -u -i 1 -fk -B ${EXT_DN}" \
         2>/dev/null
+    echo "      -> uplink server runs detached on Core (no local tmux attach)"
     wait_for 10 "iperf server starting"
     sudo ip netns exec "${ns}" iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -B "${ue_ip}" -c "${EXT_DN}" \
         | tee /tmp/task4_udp_ul_${ns}_${BW}.csv
-    ssh -t "${SSH_USER}@${CORE_HOST}" "tmux kill-session -t ${SESS[iperf]} 2>/dev/null || true" 2>/dev/null
+    ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true" 2>/dev/null
 
     echo "[T4] TCP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
@@ -168,12 +169,13 @@ run_iperf_suite() {
 
     echo "[T4] TCP Uplink  ${ns}"
     ssh -t "${SSH_USER}@${CORE_HOST}" \
-        "tmux new-session -d -s ${SESS[iperf]} 'sudo docker exec oai-ext-dn iperf -s -i 1 -fk -B ${EXT_DN}'" \
+        "sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true; sudo docker exec -d oai-ext-dn iperf -s -i 1 -fk -B ${EXT_DN}" \
         2>/dev/null
+    echo "      -> uplink server runs detached on Core (no local tmux attach)"
     wait_for 10 "iperf server starting"
     sudo ip netns exec "${ns}" iperf -y C -t ${DURATION} -i 1 -fk -B "${ue_ip}" -c "${EXT_DN}" \
         | tee /tmp/task4_tcp_ul_${ns}_${BW}.csv
-    ssh -t "${SSH_USER}@${CORE_HOST}" "tmux kill-session -t ${SESS[iperf]} 2>/dev/null || true" 2>/dev/null
+    ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true" 2>/dev/null
 }
 
 run_iperf_suite ue1 "${IP_UE1}"
@@ -181,4 +183,4 @@ run_iperf_suite ue2 "${IP_UE2}"
 
 echo ""
 echo "[T4] All RTT + throughput tests done"
-echo "      Files saved to ${OUTPUT_DIR} and /tmp/task4_*_${BW}.csv"
+echo "      Files saved to /tmp/rtt_*_${BW}.txt and /tmp/task4_*_${BW}.csv"
