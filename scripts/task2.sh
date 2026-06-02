@@ -35,8 +35,8 @@ sleep 10
 chmod +x ~/multi-ue.sh
 
 echo "[*] Creating Namespaces for UE1 and UE2"
-sudo ~/multi-ue.sh -c1
-sudo ~/multi-ue.sh -c2
+sudo multi-ue.sh -c1
+sudo multi-ue.sh -c2
 
 echo "[*] Starting UE1 in namespace ue1"
 tmux new-session -d -s ue1 \
