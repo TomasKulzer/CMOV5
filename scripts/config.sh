@@ -94,13 +94,13 @@ wait_for_iface() {
     echo ""
     return 1
 }
-
+CONF
 setup_gnb_network() {
     echo "[SETUP] Checking gNB network configuration..."
 
     # --- Route to Core subnet ---
     if ! ip route | grep -q "${DOCKER_SUBNET}"; then
-        local iface
+        local ifaceCONF
         iface=$(ip route get "${CORE_HOST}" 2>/dev/null | awk '{print $5; exit}')
         [[ -z "${iface}" ]] && die "Cannot find interface to reach Core at ${CORE_HOST}"
         sudo ip route add "${DOCKER_SUBNET}" via "${CORE_HOST}" dev "${iface}"

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab 5 Live Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body{font-family:Arial,sans-serif;margin:20px;background:#f5f5f5;color:#222}
+    h1,h2{margin:0 0 12px}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px}
+    .card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px}
+    .small{font-size:14px;color:#666}
+    button{padding:8px 12px;border:1px solid #999;background:#fff;border-radius:6px;cursor:pointer}
+    ul{margin:8px 0 0 18px}
+    canvas{max-height:300px}
+    .dot{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:middle}
+    .dot.on{background:#0a0;box-shadow:0 0 6px #0a0}
+    .dot.off{background:#bbb}
+    .live{color:#0a0;font-weight:bold}
+  </style>
+</head>
+<body>
+  <h1>Lab 5 Metrics Monitor <span id="status" class="dot off" title="stream status"></span></h1>
+  <p class="small">Live view of Task 4 throughput (iPerf, per second) and Task 3 RTT (ping, per packet). Charts update as new lines are written to the files.</p>
+  <div style="margin:12px 0">
+    <button id="toggle" onclick="toggleStream()">Pause</button>
+    <span class="small" id="updated"></span>
+  </div>
+  <div class="row">
+    <div class="card"><h2>Detected files</h2><ul id="files"></ul></div>
+    <div class="card"><h2>How to use</h2><ul>
+      <li>Put <code>server.py</code> and <code>index.html</code> in your home folder (where the <code>throughput_*.csv</code> / <code>rtt_*.txt</code> files land).</li>
+      <li>Run <code>python3 server.py</code>.</li>
+      <li>Open <code>http://127.0.0.1:8000</code> and start your Task 3/4 run — the lines grow live.</li>
+    </ul></div>
+  </div>
+  <div class="row">
+    <div class="card"><h2>Throughput UE1 (Mbps)</h2><canvas id="thr1"></canvas></div>
+    <div class="card"><h2>Throughput UE2 (Mbps)</h2><canvas id="thr2"></canvas></div>
+  </div>
+  <div class="row">
+    <div class="card"><h2>RTT UE1 (ms)</h2><canvas id="rtt1"></canvas></div>
+    <div class="card"><h2>RTT UE2 (ms)</h2><canvas id="rtt2"></canvas></div>
+  </div>
+<script>
+const THR_COMBOS = [
+  ['udp_dl','20'],['udp_ul','20'],['tcp_dl','20'],['tcp_ul','20'],
+  ['udp_dl','100'],['udp_ul','100'],['tcp_dl','100'],['tcp_ul','100'],
+];
+const RTT_COMBOS = [['ul','20'],['dl','20'],['ul','100'],['dl','100']];
+const PALETTE = ['#e6194B','#3cb44b','#4363d8','#f58231','#911eb4','#42d4f4','#f032e6','#9A6324'];
+const color = i => PALETTE[i % PALETTE.length];
+
+function makeLine(canvasId, combos, labeler, xTitle, yTitle){
+  const datasets = combos.map((c,i)=>({
+    label: labeler(c), data: [],
+    borderColor: color(i), backgroundColor: color(i),
+    borderWidth: 1.8, pointRadius: 2, tension: 0.2, spanGaps: true,
+  }));
+  return new Chart(document.getElementById(canvasId), {
+    type:'line',
+    data:{datasets},
+    options:{
+      responsive:true, animation:false,
+      interaction:{mode:'nearest', intersect:false},
+      scales:{
+        x:{type:'linear', title:{display:true, text:xTitle}},
+        y:{beginAtZero:true, title:{display:true, text:yTitle}},
+      },
+      plugins:{legend:{labels:{boxWidth:12, font:{size:10}}}}
+    }
+  });
+}
+
+const thrLabel = c => `${c[0].toUpperCase().replace('_',' ')} ${c[1]}MHz`;
+const rttLabel = c => `${c[0].toUpperCase()} ${c[1]}MHz`;
+const thr1 = makeLine('thr1', THR_COMBOS, thrLabel, 'Time (s)', 'Mbps');
+const thr2 = makeLine('thr2', THR_COMBOS, thrLabel, 'Time (s)', 'Mbps');
+const rtt1 = makeLine('rtt1', RTT_COMBOS, rttLabel, 'Ping sample', 'RTT (ms)');
+const rtt2 = makeLine('rtt2', RTT_COMBOS, rttLabel, 'Ping sample', 'RTT (ms)');
+
+function thrPoints(data, ns, kind, bw){
+  const rows = (data.throughput[bw]||{})[`${kind}_${ns}`] || [];
+  return rows.filter(r=>!r.summary).map(r=>({x:r.t_end, y:r.mbps}));
+}
+function rttPoints(data, ns, dir, bw){
+  const obj = (data.rtt[bw]||{})[`${dir}_${ns}`] || {samples:[]};
+  return (obj.samples||[]).map((v,i)=>({x:i+1, y:v}));
+}
+function updateThr(chart, ns, data){
+  THR_COMBOS.forEach((c,i)=>{ chart.data.datasets[i].data = thrPoints(data, ns, c[0], c[1]); });
+  chart.update('none');
+}
+function updateRtt(chart, ns, data){
+  RTT_COMBOS.forEach((c,i)=>{ chart.data.datasets[i].data = rttPoints(data, ns, c[0], c[1]); });
+  chart.update('none');
+}
+
+function render(data){
+  const active = new Set(data.active_files||[]);
+  document.getElementById('files').innerHTML =
+    (data.present_files||[]).map(f =>
+      `<li>${f}${active.has(f) ? ' <span class="live">● live</span>' : ''}</li>`
+    ).join('') || '<li>No files found</li>';
+  updateThr(thr1,'ue1',data); updateThr(thr2,'ue2',data);
+  updateRtt(rtt1,'ue1',data); updateRtt(rtt2,'ue2',data);
+  document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+let es = null, streaming = true;
+const setStatus = on => { document.getElementById('status').className = 'dot ' + (on?'on':'off'); };
+
+function startStream(){
+  es = new EventSource('/api/stream');
+  es.onopen    = () => setStatus(true);
+  es.onmessage = e  => { try { render(JSON.parse(e.data)); } catch(err){ console.error(err); } };
+  es.onerror   = () => setStatus(false);   // EventSource auto-reconnects
+}
+function stopStream(){ if(es){ es.close(); es=null; } setStatus(false); }
+function toggleStream(){
+  streaming = !streaming;
+  document.getElementById('toggle').textContent = streaming ? 'Pause' : 'Resume';
+  streaming ? startStream() : stopStream();
+}
+
+// initial snapshot for instant paint, then switch to the live stream
+fetch('/api/metrics').then(r=>r.json()).then(render).catch(()=>{});
+startStream();
+</script>
+</body>
+</html>
