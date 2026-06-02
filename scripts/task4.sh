@@ -147,17 +147,20 @@ run_iperf_suite() {
     echo "[T4] Aggressive cleanup of previous iperf processes..."
     ssh "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn pkill -9 iperf" 2>/dev/null || true
     sudo ip netns exec "${ns}" pkill -9 iperf 2>/dev/null || true
+    tmux kill-session -t "iperf_${ns}" 2>/dev/null || true
 
     # --- UDP DOWNLINK ---
     echo "[T4] UDP Downlink  ${ns}"
-    # Start server in namespace using nohup to detach it from terminal session
-    sudo ip netns exec "${ns}" bash -c "nohup iperf -s -u -i 1 > /tmp/iperf_server_${ns}_udp_dl.log 2>&1 &"
+    
+    # Use tmux to keep the namespace server perfectly isolated and alive
+    tmux new-session -d -s "iperf_${ns}" "sudo ip netns exec ${ns} iperf -s -u -i 1"
     wait_for 5 "iperf server starting in namespace"
     
     ssh "${SSH_USER}@${CORE_HOST}" \
         "sudo docker exec oai-ext-dn iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -l 1000 -B ${EXT_DN} -c ${ue_ip}" \
         2>/dev/null | tee /tmp/task4_udp_dl_${ns}_${BW}.csv
         
+    tmux kill-session -t "iperf_${ns}" 2>/dev/null || true
     sudo ip netns exec "${ns}" pkill -9 iperf 2>/dev/null || true
 
     # --- UDP UPLINK ---
@@ -172,13 +175,15 @@ run_iperf_suite() {
 
     # --- TCP DOWNLINK ---
     echo "[T4] TCP Downlink  ${ns}"
-    sudo ip netns exec "${ns}" bash -c "nohup iperf -s -i 1 > /tmp/iperf_server_${ns}_tcp_dl.log 2>&1 &"
+    
+    tmux new-session -d -s "iperf_${ns}" "sudo ip netns exec ${ns} iperf -s -i 1"
     wait_for 5 "iperf server starting in namespace"
     
     ssh "${SSH_USER}@${CORE_HOST}" \
         "sudo docker exec oai-ext-dn iperf -y C -t ${DURATION} -i 1 -fk -B ${EXT_DN} -c ${ue_ip}" \
         2>/dev/null | tee /tmp/task4_tcp_dl_${ns}_${BW}.csv
         
+    tmux kill-session -t "iperf_${ns}" 2>/dev/null || true
     sudo ip netns exec "${ns}" pkill -9 iperf 2>/dev/null || true
 
     # --- TCP UPLINK ---
