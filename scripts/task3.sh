@@ -87,10 +87,10 @@ head -55 /tmp/gnb_task3_full.log > /tmp/gnb_task3_startup.log 2>/dev/null || tru
 
 # ---- Namespaces ----
 cleanup_netns
-chmod +x "${OUTPUT_DIR}/multi-ue.sh"
+chmod +x "${SCRIPT_DIR}/multi-ue.sh"
 echo "[T3] Creating network namespaces"
-sudo bash "${OUTPUT_DIR}/multi-ue.sh" -c1
-sudo bash "${OUTPUT_DIR}/multi-ue.sh" -c2
+sudo bash "${SCRIPT_DIR}/multi-ue.sh" -c1
+sudo bash "${SCRIPT_DIR}/multi-ue.sh" -c2
 wait_for 5 "namespaces settling"
 
 # ---- UEs ----
