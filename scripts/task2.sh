@@ -11,6 +11,7 @@
 CORE_IP="10.227.20.82"
 EXT_DN="192.168.70.135"
 SSH_USR="mobile"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Kill any previous sessions
 tmux kill-session -t gnb 2>/dev/null
@@ -32,11 +33,11 @@ echo "Run 'tmux attach -t gnb'"
 
 sleep 10
 
-chmod +x multi-ue.sh
+chmod +x "${SCRIPT_DIR}/multi-ue.sh"
 
 echo "[*] Creating Namespaces for UE1 and UE2"
-sudo multi-ue.sh -c1
-sudo multi-ue.sh -c2
+sudo bash "${SCRIPT_DIR}/multi-ue.sh" -c1
+sudo bash "${SCRIPT_DIR}/multi-ue.sh" -c2
 
 echo "[*] Starting UE1 in namespace ue1"
 tmux new-session -d -s ue1 \
