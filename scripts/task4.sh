@@ -2,38 +2,26 @@
 # ---------------------------------------------------------------
 # Task 4 – Throughput measurement (TCP & UDP, UL & DL)
 #   Requires a running gNB + 2 UEs (from Task 3)
+#   Auto-detects UE IPs from the live netns state
 #   For each UE:
 #     - UDP Downlink  (iperf server on UE, client on ext-dn)
 #     - UDP Uplink    (iperf server on ext-dn, client on UE)
 #     - TCP Downlink  (iperf server on UE, client on ext-dn)
 #     - TCP Uplink    (iperf server on ext-dn, client on UE)
 # ---------------------------------------------------------------
-# Usage:  sudo bash task4.sh <UE1_IP> <UE2_IP> <20|100>
+# Usage:  sudo bash task4.sh <20|100>
 # ---------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/config.sh" || die "config.sh missing in ${SCRIPT_DIR}"
 
-IP_UE1="${1:-}"
-IP_UE2="${2:-}"
-BW="${3:-}"
+BW="${1:-}"
 
-[[ -z "${IP_UE1}" || -z "${IP_UE2}" || -z "${BW}" ]] && \
-    die "Usage: $0 <UE1_IP> <UE2_IP> <20|100>"
+[[ -z "${BW}" ]] && die "Usage: $0 <20|100>"
+[[ "${BW}" != "20" && "${BW}" != "100" ]] && die "Bandwidth must be 20 or 100"
 
 BITRATE="10M"
 DURATION="60"
-
-netns_of() {
-    local ip="$1"
-    if sudo ip netns exec ue1 ip addr show oaitun_ue1 2>/dev/null | grep -q "$ip"; then
-        echo "ue1"
-    elif sudo ip netns exec ue2 ip addr show oaitun_ue1 2>/dev/null | grep -q "$ip"; then
-        echo "ue2"
-    else
-        echo ""
-    fi
-}
 
 start_ue_iperf_server() {
     local ns="$1" ue_ip="$2" protocol="$3"
@@ -57,11 +45,17 @@ stop_iperf_server() {
     tmux kill-session -t iperf 2>/dev/null || true
 }
 
+IP_UE1="$(ue_ip ue1)"
+IP_UE2="$(ue_ip ue2)"
+
+[[ -z "${IP_UE1}" || -z "${IP_UE2}" ]] && \
+    die "Could not detect UE IPs. Run Task 3 first and make sure ue1/ue2 are still up."
+
+echo "[T4] UE1 IP = ${IP_UE1}"
+echo "[T4] UE2 IP = ${IP_UE2}"
+
 run_for_ue() {
-    local ue_ip="$1"
-    local ns
-    ns="$(netns_of "${ue_ip}")"
-    [[ -z "${ns}" ]] && { echo "[WARN] No netns found for ${ue_ip} — skipping"; return; }
+    local ns="$1" ue_ip="$2"
 
     echo ""
     echo "+-------------------------+"
@@ -129,8 +123,8 @@ echo "+----------------------+"
 echo "|        TASK 4        |"
 echo "+----------------------+"
 
-run_for_ue "${IP_UE1}"
-run_for_ue "${IP_UE2}"
+run_for_ue ue1 "${IP_UE1}"
+run_for_ue ue2 "${IP_UE2}"
 
 echo ""
 echo "[T4] All throughput tests done"
