@@ -32,7 +32,7 @@ echo "Run 'tmux attach -t gnb'"
 
 sleep 10
 
-chmod +x ~/multi-ue.sh
+chmod +x multi-ue.sh
 
 echo "[*] Creating Namespaces for UE1 and UE2"
 sudo multi-ue.sh -c1
