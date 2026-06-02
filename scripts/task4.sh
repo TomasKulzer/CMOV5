@@ -138,7 +138,7 @@ echo "[T4] Downlink ping  (60x)  ext-dn -> UE2"
 ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE2}" 2>/dev/null | tee "/tmp/rtt_dl_ue2_${BW}.txt"
 
 # ---- Throughput (Task 4) ----
-BITRATE="2M"
+BITRATE="500K"
 DURATION="10"
 
 run_iperf_suite() {
@@ -146,11 +146,11 @@ run_iperf_suite() {
 
     echo "[T4] UDP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -u -i 1 -B ${ue_ip}"
+        "sudo ip netns exec ${ns} iperf -s -u -i 1 > /tmp/iperf_server_${ns}.log 2>&1"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
     ssh "${SSH_USER}@${CORE_HOST}" \
-        "sudo docker exec oai-ext-dn iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -c ${ue_ip}" \
+        "sudo docker exec oai-ext-dn iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -l 1000 -c ${ue_ip}" \
         2>/dev/null | tee /tmp/task4_udp_dl_${ns}_${BW}.csv
     tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
 
@@ -159,13 +159,13 @@ run_iperf_suite() {
     ssh "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true; sudo docker exec -d oai-ext-dn iperf -s -u -i 1 -fk -B ${EXT_DN}" 2>/dev/null
     echo "      -> iperf server running detached on Core, client output shown below"
     wait_for 10 "iperf server starting"
-    sudo ip netns exec "${ns}" iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -c "${EXT_DN}" \
+    sudo ip netns exec "${ns}" iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -l 1000 -c "${EXT_DN}" \
         | tee /tmp/task4_udp_ul_${ns}_${BW}.csv
     ssh "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true" 2>/dev/null
 
     echo "[T4] TCP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -i 1 -B ${ue_ip}"
+        "sudo ip netns exec ${ns} iperf -s -i 1 > /tmp/iperf_server_${ns}.log 2>&1"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
     ssh "${SSH_USER}@${CORE_HOST}" \
