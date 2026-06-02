@@ -106,14 +106,14 @@ echo "[T4] Starting UE2"
 tmux new-session -d -s "${SESS[ue2]}" \
     "${UE_BASE} ue2 ./nr-uesoftmodem ${UE_COMMON} --uicc0.imsi 001010000000002 --rfsimulator.serveraddr 10.202.1.100 --telnetsrv --telnetsrv.listenport 9096 ${SSB_FLAG}"
 echo "      -> tmux attach -t ${SESS[ue2]}"
-wait_for 15 "UEs attaching"
+wait_for 5 "UEs attaching"
 
 # ---- Uplink RTT ----
 echo "[T4] Uplink ping  (60x)  UE1 -> ext-dn"
-sudo ip netns exec ue1 ping -c 10 "${EXT_DN}" -I oaitun_ue1 | tee "/tmp/rtt_ul_ue1_${BW}.txt"
+sudo ip netns exec ue1 ping -c 1 "${EXT_DN}" -I oaitun_ue1 | tee "/tmp/rtt_ul_ue1_${BW}.txt"
 
 echo "[T4] Uplink ping  (60x)  UE2 -> ext-dn"
-sudo ip netns exec ue2 ping -c 10 "${EXT_DN}" -I oaitun_ue1 | tee "/tmp/rtt_ul_ue2_${BW}.txt"
+sudo ip netns exec ue2 ping -c 1 "${EXT_DN}" -I oaitun_ue1 | tee "/tmp/rtt_ul_ue2_${BW}.txt"
 
 # ---- Gather IPs ----
 IP_UE1=$(ue_ip ue1)
@@ -132,10 +132,10 @@ wait_for 5 "preparing downlink"
 
 # ---- Downlink RTT ----
 echo "[T4] Downlink ping  (60x)  ext-dn -> UE1"
-ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE1}" 2>/dev/null | tee "/tmp/rtt_dl_ue1_${BW}.txt"
+ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 1 ${IP_UE1}" 2>/dev/null | tee "/tmp/rtt_dl_ue1_${BW}.txt"
 
 echo "[T4] Downlink ping  (60x)  ext-dn -> UE2"
-ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE2}" 2>/dev/null | tee "/tmp/rtt_dl_ue2_${BW}.txt"
+ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 1 ${IP_UE2}" 2>/dev/null | tee "/tmp/rtt_dl_ue2_${BW}.txt"
 
 # ---- Throughput (Task 4) ----
 BITRATE="500K"
