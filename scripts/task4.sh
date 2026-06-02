@@ -76,7 +76,7 @@ fi
 # ---- Launch gNB (patched config) ----
 echo "[T4] Starting gNB with modified config"
 tmux new-session -d -s "${SESS[gnb]}" \
-    "sudo ./nr-softmodem -O ${GNB_TMP_CONF} --gNBs.[0].min_rxtxtime 6 --rfsim --sa 2>&1 | stdbuf -oL tee /tmp/gnb_task3_full.log"
+    "sudo ./nr-softmodem -O ${GNB_TMP_CONF} --gNBs.[0].min_rxtxtime 6 --rfsim --sa > /tmp/gnb_task3_full.log 2>&1"
 echo "      -> tmux attach -t ${SESS[gnb]}"
 wait_for 15 "gNB booting and connecting to AMF"
 

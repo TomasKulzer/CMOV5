@@ -122,13 +122,30 @@ setup_gnb_network() {
     sudo sysctl -w net.ipv4.conf.all.forwarding=1 > /dev/null 2>&1
     sudo iptables -P FORWARD ACCEPT 2>/dev/null
 
-    # --- Verify Core reachability ---
-    if ping -c 2 -W 3 "${AMF_IP}" > /dev/null 2>&1; then
+    # --- Verify Core reachability (with retries) ---
+    local amf_reachable=false ext_dn_reachable=false
+    for i in 1 2 3; do
+        if ping -c 2 -W 3 "${AMF_IP}" > /dev/null 2>&1; then
+            amf_reachable=true
+            break
+        fi
+        echo "  >> AMF unreachable, retry ${i}/3..."
+        sleep 2
+    done
+    if ${amf_reachable}; then
         echo "  >> AMF (${AMF_IP}) reachable"
     else
         echo "  [WARN] Cannot reach AMF at ${AMF_IP}"
     fi
-    if ping -c 2 -W 3 "${EXT_DN}" > /dev/null 2>&1; then
+    for i in 1 2 3; do
+        if ping -c 2 -W 3 "${EXT_DN}" > /dev/null 2>&1; then
+            ext_dn_reachable=true
+            break
+        fi
+        echo "  >> ext-dn unreachable, retry ${i}/3..."
+        sleep 2
+    done
+    if ${ext_dn_reachable}; then
         echo "  >> ext-dn (${EXT_DN}) reachable"
     else
         echo "  [WARN] Cannot reach ext-dn at ${EXT_DN}"
