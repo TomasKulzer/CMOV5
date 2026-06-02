@@ -138,7 +138,7 @@ echo "[T4] Downlink ping  (60x)  ext-dn -> UE2"
 ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec oai-ext-dn ping -c 10 ${IP_UE2}" 2>/dev/null | tee "/tmp/rtt_dl_ue2_${BW}.txt"
 
 # ---- Throughput (Task 4) ----
-BITRATE="10M"
+BITRATE="2M"
 DURATION="10"
 
 run_iperf_suite() {
@@ -146,7 +146,7 @@ run_iperf_suite() {
 
     echo "[T4] UDP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -u -i 1"
+        "sudo ip netns exec ${ns} iperf -s -u -i 1 -B ${ue_ip}"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
     ssh "${SSH_USER}@${CORE_HOST}" \
@@ -165,7 +165,7 @@ run_iperf_suite() {
 
     echo "[T4] TCP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -i 1"
+        "sudo ip netns exec ${ns} iperf -s -i 1 -B ${ue_ip}"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
     ssh "${SSH_USER}@${CORE_HOST}" \
