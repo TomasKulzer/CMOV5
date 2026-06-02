@@ -139,11 +139,11 @@ run_iperf_suite() {
 
     echo "[T4] UDP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -u -i 1 -B ${ue_ip}"
+        "sudo ip netns exec ${ns} iperf -s -u -i 1"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
     ssh -t "${SSH_USER}@${CORE_HOST}" \
-        "sudo docker exec -it oai-ext-dn iperf -y C -u -t ${DURATION} -i 1 -fk -B ${EXT_DN} -b ${BITRATE} -c ${ue_ip}" \
+        "sudo docker exec -it oai-ext-dn iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -c ${ue_ip}" \
         2>/dev/null | tee /tmp/task4_udp_dl_${ns}_${BW}.csv
     tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
 
@@ -153,17 +153,17 @@ run_iperf_suite() {
         "ssh ${SSH_USER}@${CORE_HOST} \"sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true; sudo docker exec oai-ext-dn iperf -s -u -i 1 -fk -B ${EXT_DN}\" 2>&1 | tee /tmp/iperf_ul_server_${ns}.log"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
-    sudo ip netns exec "${ns}" iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -B "${ue_ip}" -c "${EXT_DN}" \
+    sudo ip netns exec "${ns}" iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -c "${EXT_DN}" \
         | tee /tmp/task4_udp_ul_${ns}_${BW}.csv
     tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
 
     echo "[T4] TCP Downlink  ${ns}"
     tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -i 1 -B ${ue_ip}"
+        "sudo ip netns exec ${ns} iperf -s -i 1"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
     ssh -t "${SSH_USER}@${CORE_HOST}" \
-        "sudo docker exec -it oai-ext-dn iperf -y C -t ${DURATION} -i 1 -fk -B ${EXT_DN} -c ${ue_ip}" \
+        "sudo docker exec -it oai-ext-dn iperf -y C -t ${DURATION} -i 1 -fk -c ${ue_ip}" \
         2>/dev/null | tee /tmp/task4_tcp_dl_${ns}_${BW}.csv
     tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
 
@@ -173,7 +173,7 @@ run_iperf_suite() {
         "ssh ${SSH_USER}@${CORE_HOST} \"sudo docker exec oai-ext-dn pkill -f 'iperf -s' >/dev/null 2>&1 || true; sudo docker exec oai-ext-dn iperf -s -i 1 -fk -B ${EXT_DN}\" 2>&1 | tee /tmp/iperf_ul_server_${ns}.log"
     echo "      -> tmux attach -t ${SESS[iperf]}"
     wait_for 10 "iperf server starting"
-    sudo ip netns exec "${ns}" iperf -y C -t ${DURATION} -i 1 -fk -B "${ue_ip}" -c "${EXT_DN}" \
+    sudo ip netns exec "${ns}" iperf -y C -t ${DURATION} -i 1 -fk -c "${EXT_DN}" \
         | tee /tmp/task4_tcp_ul_${ns}_${BW}.csv
     tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
 }
