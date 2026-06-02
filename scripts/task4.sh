@@ -121,6 +121,13 @@ IP_UE2=$(ue_ip ue2)
 echo "[T4] UE1 IP = ${IP_UE1}"
 echo "[T4] UE2 IP = ${IP_UE2}"
 
+# ---- Add default routes in namespaces for iperf ----
+for ns in ue1 ue2; do
+    sudo ip netns exec "${ns}" ip route del default 2>/dev/null || true
+    sudo ip netns exec "${ns}" ip route add default dev oaitun_ue1
+    echo "[T4] Added default route via oaitun_ue1 in ${ns}"
+done
+
 wait_for 5 "preparing downlink"
 
 # ---- Downlink RTT ----
