@@ -94,7 +94,6 @@ wait_for_iface() {
     echo ""
     return 1
 }
-CONF
 setup_gnb_network() {
     echo "[SETUP] Checking gNB network configuration..."
 
