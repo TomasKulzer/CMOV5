@@ -2,75 +2,102 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>5G RAN Monitoring Dashboard</title>
+    <title>5G Core & RAN Real-time Telemetry</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
-        .header { background: #1a202c; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between;}
-        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        canvas { width: 100% !important; height: 300px !important; }
+        body { background-color: #0f0f12; color: #00ff99; font-family: 'Courier New', monospace; margin: 25px; }
+        h1 { border-bottom: 2px solid #00ff99; padding-bottom: 10px; text-shadow: 0 0 8px #00ff99; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; margin-top: 20px; }
+        .panel { background-color: #16161a; border: 1px solid #333; border-radius: 6px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .panel h2 { color: #00cbd6; margin-top: 0; font-size: 1.1rem; text-transform: uppercase; }
+        canvas { max-height: 240px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h2>5G O-RAN Real-Time Telemetry (Task 5)</h2>
-        <div id="status" style="color: #48bb78; font-weight: bold; margin-top: 5px;">Connecting...</div>
+    <h1>⚡ 5G RAN & CORE MONITOR (SUBPROCESS PIPE ENGINE)</h1>
+    <p>System status: <span style="color:#fff; background:#00aa55; padding:2px 6px; border-radius:3px;">LIVE STREAMING</span></p>
+
+    <div class="grid">
+        <div class="panel">
+            <h2>RAN Throughput (Live xApp)</h2>
+            <canvas id="chart_xapp_thp"></canvas>
+        </div>
+        <div class="panel">
+            <h2>PRB Resource Allocation (Live xApp)</h2>
+            <canvas id="chart_xapp_prb"></canvas>
+        </div>
+
+        <div class="panel">
+            <h2>iPerf Core Delivery (Task 4 Logs)</h2>
+            <canvas id="chart_core_thp"></canvas>
+        </div>
+        <div class="panel">
+            <h2>User Plane Latency (Task 3/4 Logs)</h2>
+            <canvas id="chart_core_rtt"></canvas>
+        </div>
     </div>
 
-    <div class="container">
-        <div class="card">
-            <h3>UE Throughput (DL/UL)</h3>
-            <canvas id="thpChart"></canvas>
-        </div>
-        <div class="card">
-            <h3>Physical Resource Blocks (PRBs)</h3>
-            <canvas id="prbChart"></canvas>
-        </div>
-    </div>
+<script>
+const createChartConfig = (yLabel, datasets) => ({
+    type: 'line',
+    data: { datasets },
+    options: {
+        animation: false,
+        scales: {
+            x: { type: 'linear', grid: { color: '#222' }, title: { display: true, text: 'Timeline', color: '#999' } },
+            y: { grid: { color: '#222' }, title: { display: true, text: yLabel, color: '#999' } }
+        },
+        plugins: { legend: { labels: { color: '#fff', font: { family: 'Courier New' } } } }
+    }
+});
 
-    <script>
-        // Initialize Chart.js Templates
-        const createChart = (ctxId, title, labels) => {
-            const ctx = document.getElementById(ctxId).getContext('2d');
-            return new Chart(ctx, {
-                type: 'line',
-                data: { datasets: labels.map((l, i) => ({ label: l, data: [], borderColor: i === 0 ? '#3182ce' : '#e53e3e', tension: 0.3 })) },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear', title: { display: true, text: 'Time (s)' } } } }
-            });
-        };
+const c1 = new Chart(document.getElementById('chart_xapp_thp'), createChartConfig('kbps', [
+    { label: 'DL Throughput', data: [], borderColor: '#00ff99', backgroundColor: '#00ff99', tension: 0.1 },
+    { label: 'UL Throughput', data: [], borderColor: '#ff0055', backgroundColor: '#ff0055', tension: 0.1 }
+]));
 
-        const thpChart = createChart('thpChart', 'Throughput', ['DRB.UEThpDl', 'DRB.UEThpUl']);
-        const prbChart = createChart('prbChart', 'PRB Usage', ['RRU.PrbTotDl', 'RRU.PrbTotUl']);
+const c2 = new Chart(document.getElementById('chart_xapp_prb'), createChartConfig('PRBs', [
+    { label: 'PRB Dl Util', data: [], borderColor: '#00cbd6', backgroundColor: '#00cbd6', tension: 0.1 },
+    { label: 'PRB Ul Util', data: [], borderColor: '#ffcc00', backgroundColor: '#ffcc00', tension: 0.1 }
+]));
 
-        // Listen to Python Server-Sent Events (SSE)
-        const evtSource = new EventSource('/api/stream');
-        
-        evtSource.onmessage = function(event) {
-            document.getElementById('status').innerText = '🟢 Live Stream Active';
-            const data = JSON.parse(event.data);
-            
-            if (data.kpm && data.kpm.metrics) {
-                const metrics = data.kpm.metrics;
-                
-                // Update Throughput
-                if (metrics['DRB.UEThpDl']) thpChart.data.datasets[0].data = metrics['DRB.UEThpDl'].slice(-50); // Keep last 50 pts
-                if (metrics['DRB.UEThpUl']) thpChart.data.datasets[1].data = metrics['DRB.UEThpUl'].slice(-50);
-                thpChart.update();
+const c3 = new Chart(document.getElementById('chart_core_thp'), createChartConfig('Mbps', [
+    { label: 'UE1 DL (TCP)', data: [], borderColor: '#a855f7', tension: 0.1 },
+    { label: 'UE2 DL (TCP)', data: [], borderColor: '#ec4899', tension: 0.1 }
+]));
 
-                // Update PRBs
-                if (metrics['RRU.PrbTotDl']) prbChart.data.datasets[0].data = metrics['RRU.PrbTotDl'].slice(-50);
-                if (metrics['RRU.PrbTotUl']) prbChart.data.datasets[1].data = metrics['RRU.PrbTotUl'].slice(-50);
-                prbChart.update();
-            }
-        };
+const c4 = new Chart(document.getElementById('chart_core_rtt'), createChartConfig('ms', [
+    { label: 'UE1 RTT', data: [], borderColor: '#3b82f6', tension: 0.1 },
+    { label: 'UE2 RTT', data: [], borderColor: '#f97316', tension: 0.1 }
+]));
 
-        evtSource.onerror = function() {
-            document.getElementById('status').innerText = '🔴 Connection Lost - Retrying...';
-            document.getElementById('status').style.color = '#e53e3e';
-        };
-    </script>
+function pollSystem() {
+    fetch('/api/data')
+        .then(res => res.json())
+        .then(data => {
+            // Populate xApp Streaming Charts
+            c1.data.datasets[0].data = data.xapp["DRB.UEThpDl"];
+            c1.data.datasets[1].data = data.xapp["DRB.UEThpUl"];
+            c1.update('none');
+
+            c2.data.datasets[0].data = data.xapp["RRU.PrbTotDl"];
+            c2.data.datasets[1].data = data.xapp["RRU.PrbTotUl"];
+            c2.update('none');
+
+            // Populate Task 4 Log Analysis Charts
+            c3.data.datasets[0].data = data.iperf.ue1_20_dl;
+            c3.data.datasets[1].data = data.iperf.ue2_20_dl;
+            c3.update('none');
+
+            c4.data.datasets[0].data = data.ping.ue1_20_dl;
+            c4.data.datasets[1].data = data.ping.ue2_20_dl;
+            c4.update('none');
+        });
+}
+
+setInterval(pollSystem, 1000);
+pollSystem();
+</script>
 </body>
 </html>
