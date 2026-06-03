@@ -89,6 +89,7 @@ cleanup_netns
 chmod +x "${SCRIPT_DIR}/multi-ue.sh"
 echo "[T4] Creating network namespaces"
 sudo bash "${SCRIPT_DIR}/multi-ue.sh" -c1
+wait_for 5
 sudo bash "${SCRIPT_DIR}/multi-ue.sh" -c2
 wait_for 5 "namespaces settling"
 
@@ -97,19 +98,16 @@ UE_BASE="sudo ip netns exec"
 UE_COMMON="-r ${UE_RB} --numerology 1 --band 78 -C ${UE_FREQ} --rfsim --sa"
 
 echo "[T4] Starting UE1"
-# FIX: Map UE1 to explicit communication ports 5001 and 5002
 tmux new-session -d -s "${SESS[ue1]}" \
-    "${UE_BASE} ue1 ./nr-uesoftmodem ${UE_COMMON} --uicc0.imsi 001010000000001 --rfsimulator.serveraddr 10.201.1.100 --telnetsrv --telnetsrv.listenport 9095 ${SSB_FLAG} --rfsimulator.options no_sync,sadd=10.201.1.100,sport=5001,cport=5002"
+    "${UE_BASE} ue1 ./nr-uesoftmodem ${UE_COMMON} --uicc0.imsi 001010000000001 --rfsimulator.serveraddr 10.201.1.100 --telnetsrv --telnetsrv.listenport 9095 ${SSB_FLAG}"
 echo "      -> tmux attach -t ${SESS[ue1]}"
-wait_for 10 "Letting UE1 fully establish registration first"
+wait_for 5 "UE1 initializing"
 
 echo "[T4] Starting UE2"
-# FIX: Map UE2 to independent ports 5003 and 5004 to kill the asymmetry bug completely
 tmux new-session -d -s "${SESS[ue2]}" \
-    "${UE_BASE} ue2 ./nr-uesoftmodem ${UE_COMMON} --uicc0.imsi 001010000000002 --rfsimulator.serveraddr 10.202.1.100 --telnetsrv --telnetsrv.listenport 9096 ${SSB_FLAG} --rfsimulator.options no_sync,sadd=10.202.1.100,sport=5003,cport=5004"
+    "${UE_BASE} ue2 ./nr-uesoftmodem ${UE_COMMON} --uicc0.imsi 001010000000002 --rfsimulator.serveraddr 10.202.1.100 --telnetsrv --telnetsrv.listenport 9096 ${SSB_FLAG}"
 echo "      -> tmux attach -t ${SESS[ue2]}"
-wait_for 20 "Waiting for both UEs to safely secure their IP spaces"
-
+wait_for 15 "UEs attaching"
 
 # ---- Uplink RTT ----
 echo "[T4] Uplink ping  (60x)  UE1 -> ext-dn"
