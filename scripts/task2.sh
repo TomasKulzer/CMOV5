@@ -8,7 +8,7 @@
 # Prerequisites:  bash initial_setup.sh gnb  (run once beforehand)
 # ---------------------------------------------------------------
 
-CORE_IP="10.227.20.82"
+CORE_IP="10.227.20.62"
 EXT_DN="192.168.70.135"
 SSH_USR="mobile"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
