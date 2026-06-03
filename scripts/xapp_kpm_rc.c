@@ -646,7 +646,10 @@ int main(int argc, char* argv[])
   // END RC
   ////////////
 
-  sleep(5);
+  printf("[XAPP MONITOR]: Live tracking active. Press Ctrl+C to stop.\n");
+  while(1) {
+      sleep(1);
+  }
 
   for (int i = 0; i < nodes.len; ++i) {
     // Remove the handle previously returned

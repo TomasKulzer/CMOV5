@@ -15,48 +15,67 @@ import pandas as pd
 
 
 # -----------------------------
-# File lists
+# Bandwidths to compare
 # -----------------------------
-THROUGHPUT_FILES = {
-    "UDP DL": {
-        "UE1": "task4_udp_dl_ue1_100.csv",
-        "UE2": "task4_udp_dl_ue2_100.csv",
-    },
-    "UDP UL": {
-        "UE1": "task4_udp_ul_ue1_100.csv",
-        "UE2": "task4_udp_ul_ue2_100.csv",
-    },
-    "TCP DL": {
-        "UE1": "task4_tcp_dl_ue1_100.csv",
-        "UE2": "task4_tcp_dl_ue2_100.csv",
-    },
-    "TCP UL": {
-        "UE1": "task4_tcp_ul_ue1_100.csv",
-        "UE2": "task4_tcp_ul_ue2_100.csv",
-    },
+BANDWIDTHS = ["20", "100"]
+
+# 4 distinct series: one colour per (UE, bandwidth) combination
+SERIES_STYLES = {
+    ("UE1", "100"): {"color": "#2563eb", "marker": "o", "linestyle": "-"},   # blue solid
+    ("UE2", "100"): {"color": "#f97316", "marker": "s", "linestyle": "-"},    # orange solid
+    ("UE1", "20"):  {"color": "#16a34a", "marker": "D", "linestyle": "--"},   # green dashed
+    ("UE2", "20"):  {"color": "#dc2626", "marker": "^", "linestyle": "--"},   # red dashed
 }
 
-RTT_FILES = {
-    "DL": {
-        "UE1": "rtt_dl_ue1_100.txt",
-        "UE2": "rtt_dl_ue2_100.txt",
-    },
-    "UL": {
-        "UE1": "rtt_ul_ue1_100.txt",
-        "UE2": "rtt_ul_ue2_100.txt",
-    },
-}
+
+# -----------------------------
+# File builders
+# -----------------------------
+def build_throughput_files() -> Dict[str, Dict[str, Dict[str, str]]]:
+    """Returns {bandwidth: {link_type: {UE: filename}}}."""
+    files = {}
+    for bw in BANDWIDTHS:
+        files[bw] = {
+            "UDP DL": {
+                "UE1": f"task4_udp_dl_ue1_{bw}.csv",
+                "UE2": f"task4_udp_dl_ue2_{bw}.csv",
+            },
+            "UDP UL": {
+                "UE1": f"task4_udp_ul_ue1_{bw}.csv",
+                "UE2": f"task4_udp_ul_ue2_{bw}.csv",
+            },
+            "TCP DL": {
+                "UE1": f"task4_tcp_dl_ue1_{bw}.csv",
+                "UE2": f"task4_tcp_dl_ue2_{bw}.csv",
+            },
+            "TCP UL": {
+                "UE1": f"task4_tcp_ul_ue1_{bw}.csv",
+                "UE2": f"task4_tcp_ul_ue2_{bw}.csv",
+            },
+        }
+    return files
+
+
+def build_rtt_files() -> Dict[str, Dict[str, Dict[str, str]]]:
+    """Returns {bandwidth: {direction: {UE: filename}}}."""
+    files = {}
+    for bw in BANDWIDTHS:
+        files[bw] = {
+            "DL": {
+                "UE1": f"rtt_dl_ue1_{bw}.txt",
+                "UE2": f"rtt_dl_ue2_{bw}.txt",
+            },
+            "UL": {
+                "UE1": f"rtt_ul_ue1_{bw}.txt",
+                "UE2": f"rtt_ul_ue2_{bw}.txt",
+            },
+        }
+    return files
 
 
 # -----------------------------
 # Plot styling
 # -----------------------------
-UE_STYLES = {
-    "UE1": {"color": "#2563eb", "marker": "o"},
-    "UE2": {"color": "#f97316", "marker": "s"},
-}
-
-
 def apply_plot_style() -> None:
     plt.rcParams.update(
         {
@@ -211,80 +230,42 @@ def format_axes(ax: plt.Axes) -> None:
 
 
 def plot_throughput(
-    throughput_data: Dict[str, Dict[str, pd.DataFrame]],
+    throughput_data: Dict[str, Dict[str, Dict[str, pd.DataFrame]]],
     out_path: Path,
     show: bool,
 ) -> None:
+    """2x2 plot: each subplot overlays UE1/UE2 for both bandwidths."""
     fig, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True, sharex=True)
     axes = axes.flatten()
 
     plot_order = ["UDP DL", "UDP UL", "TCP DL", "TCP UL"]
 
-    # Compute appropriate y-limits per group
-    def compute_tcp_ylim(keys: List[str]) -> float:
-        max_val = 0.0
-        for key in keys:
-            for ue in ["UE1", "UE2"]:
-                df = throughput_data[key][ue]
-                if not df.empty:
-                    max_val = max(max_val, df["throughput_mbps"].max())
-        return max_val * 1.15 if max_val > 0 else 10.0
-
-    def compute_udp_ylim(keys: List[str]) -> Tuple[float, float]:
-        min_val = float("inf")
-        max_val = 0.0
-        for key in keys:
-            for ue in ["UE1", "UE2"]:
-                df = throughput_data[key][ue]
-                if not df.empty:
-                    min_val = min(min_val, df["throughput_mbps"].min())
-                    max_val = max(max_val, df["throughput_mbps"].max())
-        if min_val == float("inf"):
-            return 0.0, 10.0
-        # Tight zoom around the data
-        margin = max((max_val - min_val) * 0.5, 0.2)
-        return max(0, min_val - margin), max_val + margin
-
-    tcp_ylim_top = compute_tcp_ylim(["TCP DL", "TCP UL"])
-    udp_ylim_bottom, udp_ylim_top = 10.45, 10.55
-
     for ax, key in zip(axes, plot_order, strict=True):
-        for ue in ["UE1", "UE2"]:
-            df = throughput_data[key][ue]
-            if df.empty:
-                continue
-            x = df["end_s"]
-            y = df["throughput_mbps"]
-            style = UE_STYLES.get(ue, {})
-            label = f"{ue} (mean {y.mean():.1f} Mbps)"
-            ax.plot(
-                x,
-                y,
-                linewidth=2.0,
-                markersize=4,
-                label=label,
-                **style,
-            )
+        for bw in BANDWIDTHS:
+            for ue in ["UE1", "UE2"]:
+                df = throughput_data.get(bw, {}).get(key, {}).get(ue, pd.DataFrame())
+                if df.empty:
+                    continue
+                style = SERIES_STYLES.get((ue, bw), {})
+                label = f"{ue} – {bw} MHz (mean {df['throughput_mbps'].mean():.1f} Mbps)"
+                ax.plot(
+                    df["end_s"],
+                    df["throughput_mbps"],
+                    linewidth=2.0,
+                    markersize=4,
+                    label=label,
+                    **style,
+                )
 
         ax.set_title(key)
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Throughput (Mbps)")
-        
-        if "UDP" in key:
-            ax.set_ylim(udp_ylim_bottom, udp_ylim_top)
-        else:
-            ax.set_ylim(bottom=0, top=tcp_ylim_top)
-            
         format_axes(ax)
         handles, labels = ax.get_legend_handles_labels()
         if handles:
-            ax.legend(loc="upper right")
+            ax.legend(loc="upper right", fontsize=8)
 
-    # Link y-axes within groups
-    axes[1].sharey(axes[0])  # UDP UL shares with UDP DL
-    axes[3].sharey(axes[2])  # TCP UL shares with TCP DL
-
-    fig.suptitle("5G OAI Testbed Throughput", fontsize=16, fontweight="bold")
+    fig.suptitle("5G OAI Testbed Throughput (20 MHz vs 100 MHz)", fontsize=16, fontweight="bold")
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
     print(f"Saved throughput plot: {out_path}")
     if show:
@@ -293,27 +274,29 @@ def plot_throughput(
 
 
 def plot_rtt(
-    rtt_data: Dict[str, Dict[str, pd.DataFrame]],
+    rtt_data: Dict[str, Dict[str, Dict[str, pd.DataFrame]]],
     out_path: Path,
     show: bool,
 ) -> None:
+    """1x2 plot: each subplot overlays UE1/UE2 for both bandwidths."""
     fig, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True, sharey=True)
 
     for ax, key in zip(axes, ["DL", "UL"], strict=True):
-        for ue in ["UE1", "UE2"]:
-            df = rtt_data[key][ue]
-            if df.empty:
-                continue
-            style = UE_STYLES.get(ue, {})
-            label = f"{ue} (mean {df['rtt_ms'].mean():.2f} ms)"
-            ax.plot(
-                df["sample"],
-                df["rtt_ms"],
-                linewidth=2.0,
-                markersize=4,
-                label=label,
-                **style,
-            )
+        for bw in BANDWIDTHS:
+            for ue in ["UE1", "UE2"]:
+                df = rtt_data.get(bw, {}).get(key, {}).get(ue, pd.DataFrame())
+                if df.empty:
+                    continue
+                style = SERIES_STYLES.get((ue, bw), {})
+                label = f"{ue} – {bw} MHz (mean {df['rtt_ms'].mean():.2f} ms)"
+                ax.plot(
+                    df["sample"],
+                    df["rtt_ms"],
+                    linewidth=2.0,
+                    markersize=4,
+                    label=label,
+                    **style,
+                )
 
         ax.set_title(f"{key} RTT")
         ax.set_xlabel("Ping sample")
@@ -322,9 +305,9 @@ def plot_rtt(
         format_axes(ax)
         handles, labels = ax.get_legend_handles_labels()
         if handles:
-            ax.legend(loc="upper right")
+            ax.legend(loc="upper right", fontsize=8)
 
-    fig.suptitle("5G OAI Testbed RTT", fontsize=16, fontweight="bold")
+    fig.suptitle("5G OAI Testbed RTT (20 MHz vs 100 MHz)", fontsize=16, fontweight="bold")
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
     print(f"Saved RTT plot: {out_path}")
     if show:
@@ -332,35 +315,43 @@ def plot_rtt(
     plt.close(fig)
 
 
-def summarize_throughput(throughput_data: Dict[str, Dict[str, pd.DataFrame]]) -> pd.DataFrame:
+def summarize_throughput(throughput_data: Dict[str, Dict[str, Dict[str, pd.DataFrame]]]) -> pd.DataFrame:
     records = []
-    for link_type, ue_map in throughput_data.items():
-        for ue, df in ue_map.items():
-            records.append(
-                {
-                    "Type": link_type,
-                    "UE": ue,
-                    "Mean Mbps": df["throughput_mbps"].mean(),
-                    "Min Mbps": df["throughput_mbps"].min(),
-                    "Max Mbps": df["throughput_mbps"].max(),
-                }
-            )
+    for bw, link_dict in throughput_data.items():
+        for link_type, ue_map in link_dict.items():
+            for ue, df in ue_map.items():
+                if df.empty:
+                    continue
+                records.append(
+                    {
+                        "Bandwidth (MHz)": bw,
+                        "Type": link_type,
+                        "UE": ue,
+                        "Mean Mbps": df["throughput_mbps"].mean(),
+                        "Min Mbps": df["throughput_mbps"].min(),
+                        "Max Mbps": df["throughput_mbps"].max(),
+                    }
+                )
     return pd.DataFrame(records)
 
 
-def summarize_rtt(rtt_data: Dict[str, Dict[str, pd.DataFrame]]) -> pd.DataFrame:
+def summarize_rtt(rtt_data: Dict[str, Dict[str, Dict[str, pd.DataFrame]]]) -> pd.DataFrame:
     records = []
-    for direction, ue_map in rtt_data.items():
-        for ue, df in ue_map.items():
-            records.append(
-                {
-                    "Direction": direction,
-                    "UE": ue,
-                    "Mean RTT (ms)": df["rtt_ms"].mean(),
-                    "Min RTT (ms)": df["rtt_ms"].min(),
-                    "Max RTT (ms)": df["rtt_ms"].max(),
-                }
-            )
+    for bw, dir_dict in rtt_data.items():
+        for direction, ue_map in dir_dict.items():
+            for ue, df in ue_map.items():
+                if df.empty:
+                    continue
+                records.append(
+                    {
+                        "Bandwidth (MHz)": bw,
+                        "Direction": direction,
+                        "UE": ue,
+                        "Mean RTT (ms)": df["rtt_ms"].mean(),
+                        "Min RTT (ms)": df["rtt_ms"].min(),
+                        "Max RTT (ms)": df["rtt_ms"].max(),
+                    }
+                )
     return pd.DataFrame(records)
 
 
@@ -374,61 +365,86 @@ def main() -> None:
     show_plots = not args.no_show
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    throughput_data: Dict[str, Dict[str, pd.DataFrame]] = {}
-    rtt_data: Dict[str, Dict[str, pd.DataFrame]] = {}
+    throughput_files = build_throughput_files()
+    rtt_files = build_rtt_files()
+
+    throughput_data: Dict[str, Dict[str, Dict[str, pd.DataFrame]]] = {}
+    rtt_data: Dict[str, Dict[str, Dict[str, pd.DataFrame]]] = {}
 
     # Load throughput files
-    for link_type, ue_map in THROUGHPUT_FILES.items():
-        throughput_data[link_type] = {}
-        for ue, path in ue_map.items():
-            try:
-                full_path = resolve_path(args.data_dir, path)
-                throughput_data[link_type][ue] = parse_iperf_csv(full_path)
-            except Exception as e:
-                print(f"[Throughput] {path}: {e}")
-                throughput_data[link_type][ue] = pd.DataFrame(
-                    columns=["start_s", "end_s", "throughput_mbps"]
-                )
+    for bw, link_dict in throughput_files.items():
+        throughput_data[bw] = {}
+        for link_type, ue_map in link_dict.items():
+            throughput_data[bw][link_type] = {}
+            for ue, path in ue_map.items():
+                try:
+                    full_path = resolve_path(args.data_dir, path)
+                    throughput_data[bw][link_type][ue] = parse_iperf_csv(full_path)
+                except Exception as e:
+                    print(f"[Throughput {bw} MHz] {path}: {e}")
+                    throughput_data[bw][link_type][ue] = pd.DataFrame(
+                        columns=["start_s", "end_s", "throughput_mbps"]
+                    )
 
     # Load RTT files
-    for direction, ue_map in RTT_FILES.items():
-        rtt_data[direction] = {}
-        for ue, path in ue_map.items():
-            try:
-                full_path = resolve_path(args.data_dir, path)
-                rtt_data[direction][ue] = parse_ping_txt(full_path)
-            except Exception as e:
-                print(f"[RTT] {path}: {e}")
-                rtt_data[direction][ue] = pd.DataFrame(columns=["sample", "rtt_ms"])
+    for bw, dir_dict in rtt_files.items():
+        rtt_data[bw] = {}
+        for direction, ue_map in dir_dict.items():
+            rtt_data[bw][direction] = {}
+            for ue, path in ue_map.items():
+                try:
+                    full_path = resolve_path(args.data_dir, path)
+                    rtt_data[bw][direction][ue] = parse_ping_txt(full_path)
+                except Exception as e:
+                    print(f"[RTT {bw} MHz] {path}: {e}")
+                    rtt_data[bw][direction][ue] = pd.DataFrame(columns=["sample", "rtt_ms"])
 
-    # Remove any completely empty datasets before plotting
-    if all(df.empty for group in throughput_data.values() for df in group.values()):
-        print("No valid throughput data available to plot.")
-    else:
+    # Plot only if at least one dataset exists
+    any_thr = any(
+        not df.empty
+        for bw_dict in throughput_data.values()
+        for link_dict in bw_dict.values()
+        for df in link_dict.values()
+    )
+    any_rtt = any(
+        not df.empty
+        for bw_dict in rtt_data.values()
+        for dir_dict in bw_dict.values()
+        for df in dir_dict.values()
+    )
+
+    if any_thr:
         plot_throughput(
             throughput_data,
             args.out_dir / "throughput.png",
             show_plots,
         )
-
-    if all(df.empty for group in rtt_data.values() for df in group.values()):
-        print("No valid RTT data available to plot.")
     else:
+        print("No valid throughput data available to plot.")
+
+    if any_rtt:
         plot_rtt(
             rtt_data,
             args.out_dir / "rtt.png",
             show_plots,
         )
+    else:
+        print("No valid RTT data available to plot.")
 
-    # Print simple assessment tables
-    thr_summary = summarize_throughput(throughput_data).round(2)
-    rtt_summary = summarize_rtt(rtt_data).round(2)
+    thr_summary = summarize_throughput(throughput_data)
+    rtt_summary = summarize_rtt(rtt_data)
 
     print("\n=== Throughput Summary (higher is better) ===")
-    print(thr_summary.to_string(index=False))
+    if thr_summary.empty:
+        print("No throughput summary available.")
+    else:
+        print(thr_summary.to_string(index=False))
 
     print("\n=== RTT Summary (lower is better) ===")
-    print(rtt_summary.to_string(index=False))
+    if rtt_summary.empty:
+        print("No RTT summary available.")
+    else:
+        print(rtt_summary.to_string(index=False))
 
 
 if __name__ == "__main__":
