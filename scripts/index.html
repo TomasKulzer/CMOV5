@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G RAN Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .header { background: #1a202c; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between;}
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        canvas { width: 100% !important; height: 300px !important; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>5G O-RAN Real-Time Telemetry (Task 5)</h2>
+        <div id="status" style="color: #48bb78; font-weight: bold; margin-top: 5px;">Connecting...</div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h3>UE Throughput (DL/UL)</h3>
+            <canvas id="thpChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Physical Resource Blocks (PRBs)</h3>
+            <canvas id="prbChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Chart.js Templates
+        const createChart = (ctxId, title, labels) => {
+            const ctx = document.getElementById(ctxId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: { datasets: labels.map((l, i) => ({ label: l, data: [], borderColor: i === 0 ? '#3182ce' : '#e53e3e', tension: 0.3 })) },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear', title: { display: true, text: 'Time (s)' } } } }
+            });
+        };
+
+        const thpChart = createChart('thpChart', 'Throughput', ['DRB.UEThpDl', 'DRB.UEThpUl']);
+        const prbChart = createChart('prbChart', 'PRB Usage', ['RRU.PrbTotDl', 'RRU.PrbTotUl']);
+
+        // Listen to Python Server-Sent Events (SSE)
+        const evtSource = new EventSource('/api/stream');
+        
+        evtSource.onmessage = function(event) {
+            document.getElementById('status').innerText = '🟢 Live Stream Active';
+            const data = JSON.parse(event.data);
+            
+            if (data.kpm && data.kpm.metrics) {
+                const metrics = data.kpm.metrics;
+                
+                // Update Throughput
+                if (metrics['DRB.UEThpDl']) thpChart.data.datasets[0].data = metrics['DRB.UEThpDl'].slice(-50); // Keep last 50 pts
+                if (metrics['DRB.UEThpUl']) thpChart.data.datasets[1].data = metrics['DRB.UEThpUl'].slice(-50);
+                thpChart.update();
+
+                // Update PRBs
+                if (metrics['RRU.PrbTotDl']) prbChart.data.datasets[0].data = metrics['RRU.PrbTotDl'].slice(-50);
+                if (metrics['RRU.PrbTotUl']) prbChart.data.datasets[1].data = metrics['RRU.PrbTotUl'].slice(-50);
+                prbChart.update();
+            }
+        };
+
+        evtSource.onerror = function() {
+            document.getElementById('status').innerText = '🔴 Connection Lost - Retrying...';
+            document.getElementById('status').style.color = '#e53e3e';
+        };
+    </script>
+</body>
+</html>
