@@ -30,9 +30,7 @@ echo "Run 'tmux attach -t gnb'"
 sleep 15  # Give gNB time to spin up and bind SCTP to the Core Network
 
 echo "[*] Starting UE"
-tmux new-session -d -s ue \
-    "sudo ./nr-uesoftmodem -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim --sa --uicc0.imsi 001010000000001 --rfsimulator.serveraddr 127.0.0.1"
-
+tmux new-session -d -s ue "cd $BIN_DIR && sudo ./nr-uesoftmodem -r 106 --numerology 1 --band 78 -C 3419940000 --rfsim --sa --uicc0.imsi 001010000000001 --rfsimulator.serveraddr 127.0.0.1"
 echo "Run 'tmux attach -t ue'"
 echo "Waiting for cellular interface registration..."
 sleep 20  # Crucial: Gives the simulator link time to settle and spawn oaitun_ue1
