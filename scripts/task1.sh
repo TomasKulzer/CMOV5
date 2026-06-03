@@ -25,8 +25,7 @@ echo "+----------------------+"
 
 echo "[*] Starting gNB"
 tmux new-session -d -s gnb \
-    "sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.fr1.106PRB.usrpb210.conf --gNBs.[0].min_rxtxtime 6 --rfsim --sa"
-
+    "sudo ./nr-softmodem -O /home/mobile/oai/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.fr1.106PRB.usrpb210.conf --gNBs.[0].min_rxtxtime 6 --rfsim --sa"
 echo "Run 'tmux attach -t gnb'"
 sleep 10
 
