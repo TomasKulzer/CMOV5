@@ -107,7 +107,7 @@ echo "[T4] Starting UE2"
 tmux new-session -d -s "${SESS[ue2]}" \
     "${UE_BASE} ue2 ./nr-uesoftmodem ${UE_COMMON} --uicc0.imsi 001010000000002 --rfsimulator.serveraddr 10.202.1.100 --telnetsrv --telnetsrv.listenport 9096 ${SSB_FLAG}"
 echo "      -> tmux attach -t ${SESS[ue2]}"
-wait_for 15 "UEs attaching"
+wait_for 20 "UEs attaching"
 
 # ---- Uplink RTT ----
 echo "[T4] Uplink ping  (60x)  UE1 -> ext-dn"
