@@ -144,6 +144,16 @@ DURATION="60"
 run_iperf_suite() {
     local ns="$1" ue_ip="$2"
 
+    echo "[T4] TCP Downlink  ${ns}"
+    tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
+    tmux new-session -d -s "${SESS[iperf]}" \
+        "sudo ip netns exec ${ns} iperf -s -i 1 -B ${ue_ip}"
+    echo "      -> tmux attach -t ${SESS[iperf]}"
+    wait_for 10 "iperf server starting"
+    ssh -t "${SSH_USER}@${CORE_HOST}" \
+        "sudo docker exec -it oai-ext-dn iperf -y C -t ${DURATION} -i 1 -fk -B ${EXT_DN} -c ${ue_ip}" \
+        2>/dev/null | tee /tmp/task4_tcp_dl_${ns}_${BW}.csv
+
     echo "[T4] TCP Uplink  ${ns}"
     echo "      -> iperf server running detached on Core"
     ssh -t "${SSH_USER}@${CORE_HOST}" "sudo docker exec -d oai-ext-dn iperf -s -i 1 -fk -B ${EXT_DN}" 2>/dev/null
@@ -167,15 +177,7 @@ run_iperf_suite() {
     sudo ip netns exec "${ns}" iperf -y C -u -t ${DURATION} -i 1 -fk -b ${BITRATE} -B "${ue_ip}" -c "${EXT_DN}" \
         | tee /tmp/task4_udp_ul_${ns}_${BW}.csv
 
-    echo "[T4] TCP Downlink  ${ns}"
-    tmux kill-session -t "${SESS[iperf]}" 2>/dev/null || true
-    tmux new-session -d -s "${SESS[iperf]}" \
-        "sudo ip netns exec ${ns} iperf -s -i 1 -B ${ue_ip}"
-    echo "      -> tmux attach -t ${SESS[iperf]}"
-    wait_for 10 "iperf server starting"
-    ssh -t "${SSH_USER}@${CORE_HOST}" \
-        "sudo docker exec -it oai-ext-dn iperf -y C -t ${DURATION} -i 1 -fk -B ${EXT_DN} -c ${ue_ip}" \
-        2>/dev/null | tee /tmp/task4_tcp_dl_${ns}_${BW}.csv
+    
 
     
 
